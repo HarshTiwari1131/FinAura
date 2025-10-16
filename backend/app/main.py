@@ -24,6 +24,18 @@ app.add_middleware(
 def health():
     return {"status": "ok"}
 
+@app.get("/health/db")
+async def health_db():
+    from .utils.dbConnect import ping_db
+    return await ping_db()
+
+@app.on_event("startup")
+async def on_startup():
+    # Create unique index on users.email for safety
+    from .utils.dbConnect import get_db
+    db = await get_db()
+    await db["users"].create_index("email", unique=True)
+
 # Routers
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(expense_router, prefix="/api/expenses", tags=["expenses"])

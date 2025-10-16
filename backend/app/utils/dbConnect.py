@@ -31,3 +31,13 @@ async def get_db():
     # Otherwise, use MONGO_DB_NAME or default
     db_name = os.getenv("MONGO_DB_NAME", "finaura")
     return _MONGO_CLIENT[db_name]
+
+
+async def ping_db() -> dict:
+    """Ping the database to verify connectivity."""
+    db = await get_db()
+    try:
+        res = await db.command({"ping": 1})
+        return {"ok": bool(res.get("ok")), "db": db.name}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "db": db.name}
