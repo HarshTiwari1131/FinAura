@@ -1,0 +1,1 @@
+This folder contains page components used by React Router.
