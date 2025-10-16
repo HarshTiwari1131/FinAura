@@ -1,21 +1,90 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import api from '../utils/api'
 
+const categories = ['Food', 'Rent', 'Transport', 'Bills', 'Shopping', 'Health', 'Entertainment', 'Other']
+const methods = ['UPI', 'Card', 'Cash', 'NetBanking', 'Wallet']
+
 export default function ExpenseForm({ onCreated }) {
-  const [form, setForm] = useState({ category: '', amount: '', date: '', note: '' })
+  const [show, setShow] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [form, setForm] = useState({ category: 'Food', amount: '', date: '', note: '', paymentMethod: 'UPI' })
+
+  useEffect(() => {
+    if (!form.date) {
+      const t = new Date()
+      const d = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`
+      setForm(f => ({ ...f, date: d }))
+    }
+  }, [])
+
   const submit = async (e) => {
     e.preventDefault()
     await api.post('/api/expenses', { ...form, amount: Number(form.amount) })
-    setForm({ category: '', amount: '', date: '', note: '' })
+    setShow(false)
+    setSuccess(true)
+    setTimeout(()=> setSuccess(false), 900)
+    setForm(f => ({ ...f, amount: '', note: '' }))
     onCreated?.()
   }
+
   return (
-    <form onSubmit={submit} className="space-y-2">
-      <input className="input" placeholder="Category" value={form.category} onChange={e=>setForm(f=>({...f, category:e.target.value}))} required />
-      <input className="input" placeholder="Amount" type="number" value={form.amount} onChange={e=>setForm(f=>({...f, amount:e.target.value}))} required />
-      <input className="input" placeholder="Date" type="date" value={form.date} onChange={e=>setForm(f=>({...f, date:e.target.value}))} required />
-      <input className="input" placeholder="Note" value={form.note} onChange={e=>setForm(f=>({...f, note:e.target.value}))} />
-      <button className="btn">Add Expense</button>
-    </form>
+    <>
+      <button className="btn w-full" onClick={()=>setShow(true)}>Log Expense</button>
+
+      <AnimatePresence>
+        {show && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.98, y: 8, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.98, y: 8, opacity: 0 }} transition={{ duration: 0.2 }} className="w-full max-w-md rounded-xl border border-slate-700/60 bg-slate-800 p-6">
+              <div className="text-slate-200 font-semibold">Log Expense</div>
+              <form className="mt-4 space-y-4" onSubmit={submit}>
+                <label className="block">
+                  <div className="text-xs text-slate-400 mb-1">Amount (₹)</div>
+                  <input className="w-full font-mono text-xl font-semibold rounded-lg bg-slate-700/70 border border-slate-700 text-slate-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400" type="number" min="0" step="0.01" value={form.amount} onChange={e=>setForm(f=>({...f, amount:e.target.value}))} required />
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="block">
+                    <div className="text-xs text-slate-400 mb-1">Category</div>
+                    <select className="w-full rounded-lg bg-slate-700/70 border border-slate-700 text-slate-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400" value={form.category} onChange={e=>setForm(f=>({...f, category:e.target.value}))}>
+                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <div className="text-xs text-slate-400 mb-1">Payment Method</div>
+                    <select className="w-full rounded-lg bg-slate-700/70 border border-slate-700 text-slate-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400" value={form.paymentMethod} onChange={e=>setForm(f=>({...f, paymentMethod:e.target.value}))}>
+                      {methods.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <label className="block">
+                  <div className="text-xs text-slate-400 mb-1">Date</div>
+                  <input className="w-full rounded-lg bg-slate-700/70 border border-slate-700 text-slate-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400" type="date" value={form.date} onChange={e=>setForm(f=>({...f, date:e.target.value}))} required />
+                </label>
+                <label className="block">
+                  <div className="text-xs text-slate-400 mb-1">Note</div>
+                  <input className="w-full rounded-lg bg-slate-700/70 border border-slate-700 text-slate-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400" placeholder="Optional" value={form.note} onChange={e=>setForm(f=>({...f, note:e.target.value}))} />
+                </label>
+                <div className="flex justify-end gap-2">
+                  <button type="button" className="btn-secondary" onClick={()=>setShow(false)}>Cancel</button>
+                  <button className="btn" type="submit">Save</button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Success checkmark */}
+      <AnimatePresence>
+        {success && (
+          <motion.div initial={{ opacity: 0, y: 6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6, scale: 0.96 }} className="fixed bottom-6 right-6 z-50">
+            <div className="flex items-center gap-2 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 px-3 py-1 text-sm">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Saved
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   )
 }

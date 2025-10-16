@@ -2,6 +2,9 @@
 
 FastAPI backend for FinAura: JWT auth, MongoDB (Motor), AI insights, and Razorpay payments.
 
+Demo: https://finaura-demo.example.com  
+Docs: see `../docs.md`
+
 ## Setup
 
 1. Python 3.10+
@@ -51,3 +54,8 @@ API base: http://localhost:8000
 pip install pytest httpx pytest-asyncio
 pytest
 ```
+
+## Contributors
+
+- Harsh Tiwari (@HarshTiwari1131)
+- Your Name Here (add yourself via PR)

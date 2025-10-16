@@ -4,12 +4,45 @@
 
 :root {
   color-scheme: dark light;
+  --bg: #0b1220;
+  --bg-muted: rgba(30,41,59,0.6);
+  --border: #1f2937;
+  --text: #e5e7eb;
+  --text-muted: #9ca3af;
+  --card: rgba(30,41,59,0.6);
+  --shadow: 0 0 0 1px rgba(2,6,23,.5);
+  --primary: #1E40AF; /* royal blue */
+  --accent: #22D3EE;  /* cyan */
+}
+
+html[data-theme='light'] {
+  --bg: #f9fafb; /* gray-50 */
+  --bg-muted: #ffffff;
+  --border: #e5e7eb;
+  --text: #111827; /* gray-900 */
+  --text-muted: #6b7280;
+  --card: #ffffff; /* white cards */
+  --shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); /* shadow-lg */
+  --primary: #1E40AF;
+  --accent: #22D3EE;
 }
 
 body {
   font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  background: var(--bg);
+  color: var(--text);
+  transition: background-color .5s ease, color .5s ease;
 }
 
-.btn { @apply inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary text-white hover:bg-blue-700 transition; }
-.btn-secondary { @apply inline-flex items-center justify-center px-4 py-2 rounded-lg border border-gray-700 hover:border-gray-500 transition; }
-.input { @apply px-3 py-2 rounded-lg bg-gray-900 border border-gray-800 focus:outline-none focus:ring-2 focus:ring-accent/50; }
+/* Card + button helpers adapt to theme */
+.card-base { background: var(--card); border-color: var(--border); box-shadow: var(--shadow); }
+.muted-surface { background: var(--bg-muted); }
+
+.btn { @apply inline-flex items-center justify-center px-4 py-2 rounded-lg transition; background: var(--primary); color: white; }
+.btn:hover { filter: brightness(1.1); }
+.btn-secondary { @apply inline-flex items-center justify-center px-4 py-2 rounded-lg transition; border: 1px solid var(--border); color: var(--text); }
+.input { @apply px-3 py-2 rounded-lg focus:outline-none; background: var(--bg-muted); border: 1px solid var(--border); color: var(--text); }
+
+/* Accent utility for icons/brand */
+.text-accent { color: var(--accent); }
+.border-accent { border-color: var(--accent); }

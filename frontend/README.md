@@ -1,18 +1,21 @@
 # FinAura Frontend (Vite + React + Tailwind)
 
+Demo: https://finaura-demo.example.com  
+Docs: see `../docs.md`
+
 ## Setup
 
-1. Copy `.env.example` to `.env` and set API base.
+1. Create `.env` and set API base:
 
 ```
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-2. Install deps and run
+2. Install and run
 
 ```
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173
+App runs at http://localhost:5173

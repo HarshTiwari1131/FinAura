@@ -7,6 +7,7 @@ from .routes.budgetRoutes import router as budget_router
 from .routes.investmentRoutes import router as investment_router
 from .routes.aiRoutes import router as ai_router
 from .routes.paymentRoutes import router as payment_router
+from .routes.goalRoutes import router as goal_router
 
 app = FastAPI(title="FinAura API", version="0.1.0")
 
@@ -35,6 +36,7 @@ async def on_startup():
     from .utils.dbConnect import get_db
     db = await get_db()
     await db["users"].create_index("email", unique=True)
+    await db["goals"].create_index("userId", unique=True)
 
 # Routers
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
@@ -44,3 +46,4 @@ app.include_router(budget_router, prefix="/api/budget", tags=["budget"])
 app.include_router(investment_router, prefix="/api/investment", tags=["investment"])
 app.include_router(payment_router, prefix="/api/payment", tags=["payment"])
 app.include_router(ai_router, prefix="/api/ai", tags=["ai"])
+app.include_router(goal_router, prefix="/api/goals", tags=["goals"])
