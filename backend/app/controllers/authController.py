@@ -22,6 +22,7 @@ async def signup(payload: UserCreate):
         "bankLinked": False,
         "kycStatus": "unverified",
         "riskProfile": "moderate",
+        "walletBalance": 0,
     }
     res = await users.insert_one(doc)
     user = await users.find_one({"_id": res.inserted_id}, {"passwordHash": 0})

@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 
-const navItems = [
+export const navItems = [
   { label: 'Home', to: '/', icon: (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v10h14V10"/></svg>
   )},
@@ -24,6 +24,9 @@ const navItems = [
   )},
   { label: 'Goal Planner', to: '/goals', icon: (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+  )},
+  { label: 'Chat', to: '/chat', icon: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
   )},
   { label: 'Payments', to: '/pay', icon: (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>

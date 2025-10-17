@@ -2,7 +2,11 @@ import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 
-load_dotenv()  # loads backend/.env or current working dir
+# Load .env deterministically from backend/app/.env even if CWD differs
+_here = os.path.dirname(__file__)
+_app_dir = os.path.abspath(os.path.join(_here, ".."))
+_env_path = os.path.join(_app_dir, ".env")
+load_dotenv(_env_path)
 
 _MONGO_CLIENT = None
 

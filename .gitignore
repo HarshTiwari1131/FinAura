@@ -1,1 +1,7 @@
 .vscode/
+backend/app/.env
+backend/.env
+backend/.venv/
+node_modules/
+__pycache__/
+*.pyc

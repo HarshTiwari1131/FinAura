@@ -8,6 +8,7 @@ from .routes.investmentRoutes import router as investment_router
 from .routes.aiRoutes import router as ai_router
 from .routes.paymentRoutes import router as payment_router
 from .routes.goalRoutes import router as goal_router
+from .routes.notificationRoutes import router as notification_router
 
 app = FastAPI(title="FinAura API", version="0.1.0")
 
@@ -47,3 +48,4 @@ app.include_router(investment_router, prefix="/api/investment", tags=["investmen
 app.include_router(payment_router, prefix="/api/payment", tags=["payment"])
 app.include_router(ai_router, prefix="/api/ai", tags=["ai"])
 app.include_router(goal_router, prefix="/api/goals", tags=["goals"])
+app.include_router(notification_router, prefix="/api/notifications", tags=["notifications"])

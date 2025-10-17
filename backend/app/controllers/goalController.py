@@ -8,31 +8,54 @@ from datetime import datetime
 COL = "goals"
 
 
-async def upsert_goal(user_id: str, payload: GoalCreate):
+async def list_goals(user_id: str):
+    db = await get_db()
+    items = [serialize_doc(g) async for g in db[COL].find({"userId": user_id}).sort("createdAt", -1)]
+    return items
+
+
+async def create_goal(user_id: str, payload: GoalCreate):
     db = await get_db()
     doc = {**payload.dict(), "userId": user_id}
-    # keep a single active goal per user: replace existing document
-    existing = await db[COL].find_one({"userId": user_id})
-    if existing:
-        await db[COL].update_one({"_id": existing["_id"]}, {"$set": doc})
-        return serialize_doc(await db[COL].find_one({"_id": existing["_id"]}))
-    # create new with createdAt
+    # default: if no active specified, make it active if none existing active
+    has_active = await db[COL].find_one({"userId": user_id, "active": True}) is not None
+    if doc.get("active") is None:
+        doc["active"] = not has_active
+    # if setting active=True, unset others
+    if doc.get("active"):
+        await db[COL].update_many({"userId": user_id}, {"$set": {"active": False}})
     res = await db[COL].insert_one({**doc, "createdAt": datetime.utcnow().isoformat()})
     return serialize_doc(await db[COL].find_one({"_id": res.inserted_id}))
 
 
-async def get_goal(user_id: str):
+async def get_active_goal(user_id: str):
     db = await get_db()
-    doc = await db[COL].find_one({"userId": user_id})
+    doc = await db[COL].find_one({"userId": user_id, "active": True})
     if not doc:
-        return None
-    return serialize_doc(doc)
+        # fallback to most recent if any
+        doc = await db[COL].find_one({"userId": user_id})
+    return serialize_doc(doc) if doc else None
+
+
+async def set_active_goal(user_id: str, goal_id: str):
+    db = await get_db()
+    oid = to_obj_id(goal_id)
+    # ensure it belongs to user
+    doc = await db[COL].find_one({"_id": oid, "userId": user_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    await db[COL].update_many({"userId": user_id}, {"$set": {"active": False}})
+    await db[COL].update_one({"_id": oid}, {"$set": {"active": True}})
+    return serialize_doc(await db[COL].find_one({"_id": oid}))
 
 
 async def update_goal(user_id: str, goal_id: str, payload: GoalUpdate):
     db = await get_db()
     oid = to_obj_id(goal_id)
     updates = {k: v for k, v in payload.dict().items() if v is not None}
+    # If setting active True, unset others first
+    if updates.get("active") is True:
+        await db[COL].update_many({"userId": user_id}, {"$set": {"active": False}})
     r = await db[COL].update_one({"_id": oid, "userId": user_id}, {"$set": updates})
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Goal not found")
@@ -65,7 +88,10 @@ def _month_diff(a: datetime, b: datetime) -> int:
 
 async def compute_goal_progress(user_id: str):
     db = await get_db()
-    goal = await db[COL].find_one({"userId": user_id})
+    goal = await db[COL].find_one({"userId": user_id, "active": True})
+    if not goal:
+        # fallback to most recent if available
+        goal = await db[COL].find_one({"userId": user_id})
     if not goal:
         raise HTTPException(status_code=404, detail="No goal configured")
 

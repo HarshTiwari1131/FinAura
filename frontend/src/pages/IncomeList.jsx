@@ -8,6 +8,8 @@ export default function IncomeList() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [sort, setSort] = useState('date_desc')
+  const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState({ source: 'Salary', amount: '', date: '' })
 
   const load = async () => {
     const { data } = await api.get('/api/income')
@@ -34,6 +36,26 @@ export default function IncomeList() {
 
   const remove = async (id) => {
     await api.delete(`/api/income/${id}`)
+    load()
+  }
+
+  const openEdit = (r) => {
+    setEditing(r)
+    setForm({
+      source: r.source || 'Salary',
+      amount: String(r.amount||''),
+      date: r.date ? new Date(r.date).toISOString().slice(0,10) : ''
+    })
+  }
+
+  const submitEdit = async (e) => {
+    e.preventDefault()
+    if (!editing?._id) return
+    await api.put(`/api/income/${editing._id}`, {
+      ...form,
+      amount: Number(form.amount||0)
+    })
+    setEditing(null)
     load()
   }
 
@@ -78,13 +100,13 @@ export default function IncomeList() {
           <tbody>
             <AnimatePresence initial={false}>
               {filtered.map(r => (
-                <motion.tr key={r._id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="hover:bg-slate-800/70">
+                <motion.tr key={r._id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="group hover:bg-slate-800/70">
                   <td className="px-4 py-2 border-b border-slate-700 text-slate-200">{new Date(r.date).toLocaleDateString()}</td>
                   <td className="px-4 py-2 border-b border-slate-700 text-slate-300">{r.source}</td>
                   <td className="px-4 py-2 border-b border-slate-700 text-right text-emerald-400">₹{Number(r.amount||0).toLocaleString()}</td>
                   <td className="px-4 py-2 border-b border-slate-700 text-right">
                     <div className="inline-flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="btn-secondary px-2 py-1 text-xs">Edit</button>
+                      <button onClick={()=>openEdit(r)} className="btn-secondary px-2 py-1 text-xs">Edit</button>
                       <button onClick={()=>remove(r._id)} className="btn-secondary px-2 py-1 text-xs">Delete</button>
                     </div>
                   </td>
@@ -100,6 +122,39 @@ export default function IncomeList() {
         <div>{filtered.length} entries</div>
         <div>Total: <span className="text-emerald-400">₹{total.toLocaleString()}</span></div>
       </div>
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {editing && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.98, y: 8, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.98, y: 8, opacity: 0 }} transition={{ duration: 0.2 }} className="w-full max-w-md rounded-xl border border-slate-700/60 bg-slate-800 p-6">
+              <div className="text-slate-200 font-semibold">Edit Income</div>
+              <form className="mt-4 space-y-4" onSubmit={submitEdit}>
+                <label className="block">
+                  <div className="text-xs text-slate-400 mb-1">Amount (₹)</div>
+                  <input className="w-full font-mono text-xl font-semibold rounded-lg bg-slate-700/70 border border-slate-700 text-slate-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400" type="number" min="0" step="0.01" value={form.amount} onChange={e=>setForm(f=>({...f, amount:e.target.value}))} required />
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="block">
+                    <div className="text-xs text-slate-400 mb-1">Source</div>
+                    <select className="w-full rounded-lg bg-slate-700/70 border border-slate-700 text-slate-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400" value={form.source} onChange={e=>setForm(f=>({...f, source:e.target.value}))}>
+                      {['Salary','Freelance','Business','Investment','Other'].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <div className="text-xs text-slate-400 mb-1">Date</div>
+                    <input className="w-full rounded-lg bg-slate-700/70 border border-slate-700 text-slate-50 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 focus:border-cyan-400" type="date" value={form.date} onChange={e=>setForm(f=>({...f, date:e.target.value}))} required />
+                  </label>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button type="button" className="btn-secondary" onClick={()=>setEditing(null)}>Cancel</button>
+                  <button className="btn" type="submit">Update</button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

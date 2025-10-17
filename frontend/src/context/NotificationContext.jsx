@@ -1,22 +1,44 @@
-import { createContext, useContext, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import api from '../utils/api'
+import { useAuth } from './AuthContext'
 
 const NotificationCtx = createContext(null)
 
-const initialAlerts = [
-  { id: 'a1', type: 'critical', title: 'Budget Exceeded', text: 'Food budget exceeded by 8%.', ts: new Date().toISOString(), read: false },
-  { id: 'a2', type: 'ai', title: 'AI Tip', text: 'Shift 5% to low-risk funds this month.', ts: new Date(Date.now()-3600e3).toISOString(), read: false },
-  { id: 'a3', type: 'general', title: 'Payment Success', text: 'Premium activated.', ts: new Date(Date.now()-86400e3).toISOString(), read: true },
-]
+const initialAlerts = []
 
 export function NotificationProvider({ children }) {
   const [open, setOpen] = useState(false)
   const [alerts, setAlerts] = useState(initialAlerts)
+  const { user } = useAuth() || {}
+
+  // Load notifications per-user from backend if available
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      if (!user) { setAlerts([]); return }
+      try {
+        const { data } = await api.get('/api/notifications').catch(() => ({ data: [] }))
+        if (!cancelled) setAlerts(Array.isArray(data) ? data.map(n => ({
+          id: n.id || n._id || String(n.id || n._id || Date.now()),
+          ts: n.ts,
+          type: n.type,
+          title: n.title,
+          text: n.text,
+          read: !!n.read,
+        })) : [])
+      } catch {
+        if (!cancelled) setAlerts([])
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [user])
 
   const unreadCount = useMemo(() => alerts.filter(a=>!a.read).length, [alerts])
 
-  const markRead = (id) => setAlerts(list => list.map(a => a.id === id ? { ...a, read: true } : a))
+  const markRead = (id) => setAlerts(list => list.map(a => (a.id === id || a._id === id) ? { ...a, id: a.id || a._id, read: true } : a))
   const clearAll = () => setAlerts([])
-  const addAlert = (alert) => setAlerts(list => [{ id: String(Date.now()), read: false, ...alert }, ...list])
+  const addAlert = (alert) => setAlerts(list => [{ id: alert.id || alert._id || String(Date.now()), read: false, ...alert }, ...list])
 
   const value = { open, setOpen, toggle: ()=>setOpen(v=>!v), alerts, setAlerts, markRead, clearAll, addAlert, unreadCount }
   return <NotificationCtx.Provider value={value}>{children}</NotificationCtx.Provider>

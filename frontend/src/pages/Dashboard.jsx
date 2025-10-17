@@ -4,13 +4,14 @@ import ExpenseForm from '../components/ExpenseForm'
 import IncomeForm from '../components/IncomeForm'
 import InvestmentForm from '../components/InvestmentForm'
 import BudgetPlanner from '../components/BudgetPlanner'
-import NotificationPanel from '../components/NotificationPanel'
 import PaymentButton from '../components/PaymentButton'
 import GoalPlannerModal from '../components/GoalPlannerModal'
 import GoalPlannerCore from '../components/GoalPlannerCore'
 import GoalProgressCard from '../components/GoalProgressCard'
+import SmartSuggestions from '../components/SmartSuggestions'
 import api from '../utils/api'
 import { motion } from 'framer-motion'
+import { useNotifications } from '../context/NotificationContext'
 import {
   ResponsiveContainer,
   AreaChart,
@@ -28,34 +29,71 @@ export default function Dashboard() {
   const [expenses, setExpenses] = useState([])
   const [income, setIncome] = useState([])
   const [investments, setInvestments] = useState([])
-  const [ai, setAi] = useState(null)
-  const [recs, setRecs] = useState(null)
+  const [wallet, setWallet] = useState(0)
+  // Removed AI Assistant state variables
   const [tab, setTab] = useState('expenses')
-  const [goal, setGoal] = useState(() => {
-    try {
-      const raw = localStorage.getItem('finaura_goal')
-      return raw ? JSON.parse(raw) : null
-    } catch { return null }
-  })
+  const [goals, setGoals] = useState([])
+  const [goal, setGoal] = useState(null)
   const [goalOpen, setGoalOpen] = useState(false)
+  const [suggestions, setSuggestions] = useState([])
+  const [suggLoading, setSuggLoading] = useState(false)
+  const [suggError, setSuggError] = useState('')
+  const { addAlert } = useNotifications() || { addAlert: ()=>{} }
 
   const load = async () => {
-    const [e, i, inv] = await Promise.all([
+    const [e, i, inv, gList, gActive, prof] = await Promise.all([
       api.get('/api/expenses'),
       api.get('/api/income'),
-      api.get('/api/investment')
+      api.get('/api/investment'),
+      api.get('/api/goals').catch(()=>({ data: [] })),
+      api.get('/api/goals/active').catch(()=>({ data: null })),
+      api.get('/api/auth/profile')
     ])
     setExpenses(e.data)
     setIncome(i.data)
     setInvestments(inv.data)
-    const [p, r] = await Promise.all([
-      api.get('/api/ai/expense-predict'),
-      api.get('/api/ai/investment-recommend')
-    ])
-    setAi(p.data); setRecs(r.data)
+    setGoals(Array.isArray(gList.data) ? gList.data : [])
+    setGoal(gActive.data)
+    setWallet(Number(prof.data?.walletBalance||0))
   }
 
   useEffect(() => { load() }, [])
+
+  const refreshSuggestions = async () => {
+    setSuggLoading(true); setSuggError('')
+    try {
+      const { data } = await api.get('/api/ai/suggestions', { params: { model: 'gemini' } })
+      setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : [])
+    } catch (e) {
+      setSuggError('Failed to load suggestions')
+    } finally {
+      setSuggLoading(false)
+    }
+  }
+  useEffect(() => { refreshSuggestions() }, [])
+  // Expose a global refresh hook for SSE
+  useEffect(() => {
+    window.__refreshSuggestions = refreshSuggestions
+    return () => { delete window.__refreshSuggestions }
+  }, [])
+
+  // After data loads, generate useful notifications (client-side heuristic)
+  useEffect(() => {
+    if (!income.length && !expenses.length) return
+    const totalExpenses = expenses.reduce((s, x) => s + (x.amount||0), 0)
+    const totalIncome = income.reduce((s, x) => s + (x.amount||0), 0)
+    const net = totalIncome - totalExpenses
+    if (net < 0) {
+      addAlert({ type: 'critical', title: 'You are overspending', text: `Overspent by ₹${Math.abs(net).toLocaleString()}`, ts: new Date().toISOString() })
+    }
+    // Category overspend (naive): if any single category > 40% of income
+    const catSums = expenses.reduce((m, e)=>{ const k=e.category||'Other'; m[k]=(m[k]||0)+(e.amount||0); return m }, {})
+    const top = Object.entries(catSums).sort((a,b)=>b[1]-a[1])[0]
+    if (top && totalIncome>0 && top[1] > 0.4 * totalIncome) {
+      addAlert({ type: 'expense', title: `High spend on ${top[0]}`, text: `₹${Math.round(top[1]).toLocaleString()} this period`, ts: new Date().toISOString() })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [income, expenses])
 
   const totalExpenses = expenses.reduce((s, x) => s + (x.amount||0), 0)
   const totalIncome = income.reduce((s, x) => s + (x.amount||0), 0)
@@ -122,6 +160,7 @@ export default function Dashboard() {
       {/* Top Row Stats */}
       <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <motion.div variants={item}><DashboardCard title="Net Balance" value={`₹${savings.toLocaleString()}`} accent /></motion.div>
+        <motion.div variants={item}><DashboardCard title="Wallet" value={`₹${wallet.toLocaleString()}`} positive /></motion.div>
         <motion.div variants={item}><DashboardCard title="Total Income" value={`₹${totalIncome.toLocaleString()}`} /></motion.div>
         <motion.div variants={item}><DashboardCard title="Total Expenses" value={`₹${totalExpenses.toLocaleString()}`} negative /></motion.div>
         <motion.div variants={item}><DashboardCard title="Investment ROI" value={`${weightedAvgRoi.toFixed(2)}%`} positive /></motion.div>
@@ -197,26 +236,24 @@ export default function Dashboard() {
         {/* AI & Goals Panel */
         }
         <motion.div variants={container} initial="hidden" animate="show" className="md:col-span-4 space-y-4">
-          {/* AI Recommendation */}
-          <motion.div variants={item} className="rounded-xl border card-base backdrop-blur-sm p-6 border-l-4 border-l-cyan-400">
-            <div className="text-slate-300 font-semibold">AI Recommendation</div>
-            <p className="text-slate-400 text-sm mt-2">
-              {recs ? recs.recommendations?.map((r,i)=>`${r.type}${r.riskLevel?` (${r.riskLevel})`:''}`).join(', ') : 'Loading...'}
-            </p>
-          </motion.div>
-
-          {/* Expense Prediction */}
-          <motion.div variants={item} className="rounded-xl border card-base backdrop-blur-sm p-6 border-l-4 border-l-cyan-400">
-            <div className="text-slate-300 font-semibold">Expense Prediction</div>
-            <p className="text-slate-400 text-sm mt-2">
-              {ai ? `Next month: ₹${(ai.next_month_prediction||0).toLocaleString()} (confidence ${Math.round((ai.confidence||0)*100)}%)` : 'Loading...'}
-            </p>
-          </motion.div>
+          {/* Removed AI Recommendation and Expense Prediction cards */}
 
           {/* Smart Goal Planner - Progress Card and CTA */}
           <motion.div variants={item} className="space-y-3">
             {goal ? (
-              <GoalProgressCard goal={goal} monthlyData={monthlyData} />
+              <>
+                <GoalProgressCard goal={goal} monthlyData={monthlyData} />
+                {/* Goals Switcher */}
+                {goals?.length > 1 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {goals.map(g => (
+                      <button key={g._id} className={`px-3 py-1.5 rounded-lg border text-sm ${g._id===goal?._id ? 'border-cyan-500/50 text-white bg-slate-800/60' : 'border-slate-700/60 text-slate-300'}`} onClick={async()=>{ await api.post(`/api/goals/${g._id}/active`); setGoal(g); }}>
+                        {g.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             ) : (
               <div className="rounded-xl border card-base backdrop-blur-sm p-6">
                 <div className="text-slate-300 font-semibold">Set Your Financial Goal</div>
@@ -227,15 +264,18 @@ export default function Dashboard() {
             {goal && (
               <div className="flex gap-2">
                 <button className="btn-secondary" onClick={()=>setGoalOpen(true)}>Adjust Goal</button>
-                <button className="btn-secondary" onClick={()=>{ localStorage.removeItem('finaura_goal'); setGoal(null) }}>Clear</button>
+                <button className="btn-secondary" onClick={async()=>{ if(goal?._id){ await api.delete(`/api/goals/${goal._id}`); await load() } }}>Delete Active</button>
+                <button className="btn" onClick={()=>{ setGoalOpen(true); }}>Add New Goal</button>
               </div>
             )}
           </motion.div>
 
-          {/* Alerts/Notifications */}
+          {/* Smart Suggestions */}
           <motion.div variants={item}>
-            <NotificationPanel items={["Budget threshold nearing", "Upcoming bill due in 3 days"]} />
+            <SmartSuggestions items={suggestions} loading={suggLoading} error={suggError} onRefresh={refreshSuggestions} />
           </motion.div>
+
+          {/* Alerts/Notifications are global via Navbar bell */}
         </motion.div>
       </div>
 
@@ -245,7 +285,10 @@ export default function Dashboard() {
           initialGoal={goal}
           monthlyData={monthlyData}
           onCancel={()=>setGoalOpen(false)}
-          onSave={(g)=>{ localStorage.setItem('finaura_goal', JSON.stringify(g)); setGoal(g); setGoalOpen(false) }}
+          onSave={async (g)=>{
+            const { data } = await api.post('/api/goals', g)
+            setGoal(data); setGoalOpen(false)
+          }}
         />
       </GoalPlannerModal>
 

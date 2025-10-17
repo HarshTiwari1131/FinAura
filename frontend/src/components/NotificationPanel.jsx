@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useNotifications } from '../context/NotificationContext'
+import api from '../utils/api'
 
 function AlertItem({ alert, onRead }) {
   const color = alert.type === 'critical' ? 'text-red-400 border-red-500/30' : alert.type === 'ai' ? 'text-cyan-300 border-cyan-500/30' : 'text-slate-200 border-slate-600/40'
@@ -29,7 +30,7 @@ function AlertItem({ alert, onRead }) {
 }
 
 export default function NotificationPanel() {
-  const { open, setOpen, alerts, markRead, clearAll } = useNotifications()
+  const { open, setOpen, alerts, markRead, clearAll, setAlerts } = useNotifications()
 
   return (
     <AnimatePresence>
@@ -54,7 +55,7 @@ export default function NotificationPanel() {
             <div className="flex items-center justify-between">
               <div className="text-slate-200 font-semibold">Notifications</div>
               <div className="flex items-center gap-2">
-                <button onClick={clearAll} className="btn-secondary px-2 py-1 text-xs">Clear All</button>
+                <button onClick={async()=>{ await api.delete('/api/notifications'); clearAll() }} className="btn-secondary px-2 py-1 text-xs">Clear All</button>
                 <button onClick={()=>setOpen(false)} className="btn-secondary px-2 py-1 text-xs">Close</button>
               </div>
             </div>
@@ -64,9 +65,12 @@ export default function NotificationPanel() {
                 {alerts.length === 0 ? (
                   <div className="text-sm text-slate-400">No notifications</div>
                 ) : (
-                  alerts.map(a => (
-                    <AlertItem key={a.id} alert={a} onRead={() => markRead(a.id)} />
-                  ))
+                  alerts.map(a => {
+                    const id = a.id || a._id
+                    return (
+                      <AlertItem key={id} alert={a} onRead={async()=>{ await api.post(`/api/notifications/${id}/read`); markRead(id) }} />
+                    )
+                  })
                 )}
               </AnimatePresence>
             </ul>

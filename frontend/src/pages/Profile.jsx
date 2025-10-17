@@ -13,6 +13,8 @@ export default function Profile() {
   const [bankForm, setBankForm] = useState({ bankName: '', accountNumber: '', ifsc: '', consent: false })
   const [showKycModal, setShowKycModal] = useState(false)
   const [kycForm, setKycForm] = useState({ pan: '', dob: '', address: '' })
+  const [showRiskModal, setShowRiskModal] = useState(false)
+  const [riskAnswers, setRiskAnswers] = useState({ horizon: '3+', emergencyFund: 'yes', drawdown: '10', experience: 'mid' })
   const nav = useNavigate()
   const { logout } = useAuth()
 
@@ -97,12 +99,20 @@ export default function Profile() {
       {/* Left: Navigation & Avatar */}
       <div className="md:col-span-4 space-y-4">
         <div className="rounded-xl border card-base backdrop-blur-sm p-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
             <div className="h-14 w-14 rounded-full grid place-items-center" style={{ background: 'var(--bg-muted)', color: 'var(--text-muted)' }}>{(profile.name||'U')[0]}</div>
             <div>
               <div className="font-semibold" style={{ color: 'var(--text)' }}>{profile.name}</div>
               <div className="text-sm" style={{ color: 'var(--text-muted)' }}>{profile.email}</div>
             </div>
+            </div>
+            <button
+              className="btn-secondary"
+              onClick={() => { try { logout?.() } catch {} nav('/login') }}
+            >
+              Logout
+            </button>
           </div>
         </div>
 
@@ -252,7 +262,7 @@ export default function Profile() {
                     {r}
                   </button>
                 ))}
-                <button onClick={()=>{/* placeholder for assessment flow */}} className="btn-secondary">Retake Assessment</button>
+                <button onClick={()=>setShowRiskModal(true)} className="btn-secondary">Retake Assessment</button>
               </div>
             </div>
           </Section>
@@ -379,6 +389,68 @@ export default function Profile() {
               <div className="flex justify-end gap-2">
                 <button className="btn-secondary" type="button" onClick={()=>setShowKycModal(false)}>Cancel</button>
                 <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save KYC'}</button>
+              </div>
+            </form>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    {/* Risk Assessment Modal */}
+    <AnimatePresence>
+      {showRiskModal && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 grid place-items-center bg-black/50">
+          <motion.div initial={{ scale: 0.98, y: 8, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.98, y: 8, opacity: 0 }} transition={{ duration: 0.2 }} className="w-full max-w-xl rounded-xl border card-base p-6">
+            <div className="flex items-center justify-between">
+              <div className="text-slate-200 font-semibold">Risk Assessment</div>
+              <button className="btn-secondary" onClick={()=>setShowRiskModal(false)}>Close</button>
+            </div>
+            <form className="mt-4 space-y-4" onSubmit={async (e)=>{
+              e.preventDefault()
+              // Simple scoring: higher score => higher risk
+              let score = 0
+              score += riskAnswers.horizon === '5+' ? 2 : riskAnswers.horizon === '3+' ? 1 : 0
+              score += riskAnswers.emergencyFund === 'yes' ? 1 : 0
+              score += parseInt(riskAnswers.drawdown||'0',10) >= 20 ? 2 : parseInt(riskAnswers.drawdown||'0',10) >= 10 ? 1 : 0
+              score += riskAnswers.experience === 'high' ? 2 : riskAnswers.experience === 'mid' ? 1 : 0
+              const rp = score >= 4 ? 'High' : score >= 2 ? 'Medium' : 'Low'
+              await update({ riskProfile: rp })
+              setShowRiskModal(false)
+            }}>
+              <label className="block">
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Investment Horizon</div>
+                <select className="input w-full" value={riskAnswers.horizon} onChange={(e)=>setRiskAnswers(s=>({...s, horizon: e.target.value}))}>
+                  <option value="<3">Less than 3 years</option>
+                  <option value="3+">3-5 years</option>
+                  <option value="5+">More than 5 years</option>
+                </select>
+              </label>
+              <label className="block">
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Emergency Fund (3 months)</div>
+                <select className="input w-full" value={riskAnswers.emergencyFund} onChange={(e)=>setRiskAnswers(s=>({...s, emergencyFund: e.target.value}))}>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              <label className="block">
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Max Drawdown You Can Tolerate</div>
+                <select className="input w-full" value={riskAnswers.drawdown} onChange={(e)=>setRiskAnswers(s=>({...s, drawdown: e.target.value}))}>
+                  <option value="5">5%</option>
+                  <option value="10">10%</option>
+                  <option value="20">20%+</option>
+                </select>
+              </label>
+              <label className="block">
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Market Experience</div>
+                <select className="input w-full" value={riskAnswers.experience} onChange={(e)=>setRiskAnswers(s=>({...s, experience: e.target.value}))}>
+                  <option value="low">Beginner</option>
+                  <option value="mid">Intermediate</option>
+                  <option value="high">Advanced</option>
+                </select>
+              </label>
+              <div className="flex justify-end gap-2">
+                <button className="btn-secondary" type="button" onClick={()=>setShowRiskModal(false)}>Cancel</button>
+                <button className="btn" type="submit">Save Profile</button>
               </div>
             </form>
           </motion.div>

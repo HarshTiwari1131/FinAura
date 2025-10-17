@@ -25,6 +25,7 @@ class UserOut(DBModel):
     bankLinked: bool = False
     kycStatus: str = "unverified"
     riskProfile: str = "moderate"
+    walletBalance: int = 0  # stored in INR (rupees)
     kyc: Optional[KycDetails] = None
 
 

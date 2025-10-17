@@ -19,3 +19,9 @@ npm run dev
 ```
 
 App runs at http://localhost:5173
+
+## Highlights
+
+- Multiple Goals UI: Dashboard shows active goal progress and chip switcher; Goal Planner lists all goals with Add/Set Active/Edit/Delete.
+- Smart Suggestions: Apply actions inline; items hide optimistically and refresh.
+- Wallet Paid Expenses: When you log an expense with Payment Method = Wallet, dashboard wallet updates instantly.

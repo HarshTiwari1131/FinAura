@@ -1,178 +1,186 @@
-# FinAura Documentation
+# FinAura — Technical Documentation
 
-This document gives a complete overview of the FinAura project: what it does, how it's built, how to run it, and why it's unique.
+This document provides a professional, developer-focused overview of the FinAura project, including architecture, tech stack, folder structure, features, APIs, local setup, deployment, security practices, and maintenance guidelines.
 
-## 1. What is FinAura?
+## 1. Project Overview
 
-FinAura is an AI‑assisted personal finance platform that helps users:
-- Track expenses and income
-- Plan budgets and financial goals
-- Simulate investments based on risk profile
-- Link bank accounts (UX flow) and capture KYC details
-- Get a cohesive, theme‑aware UI with responsive design
+FinAura is an AI‑assisted personal finance platform that helps users track income/expenses/investments, manage multiple financial goals, receive smart suggestions, and top up a wallet via Stripe. The app provides real-time notifications (SSE) and an in‑app assistant constrained to first‑party data.
 
-It is a full‑stack monorepo with a React + Vite frontend and a FastAPI backend on MongoDB.
+Key objectives:
+## 2. Tech Stack
 
-## 2. Demo
+- Frontend: Vite, React, Tailwind CSS, Framer Motion, Recharts, Axios
+- Backend: FastAPI (Python), MongoDB (Motor), Pydantic v2, JWT Auth, Stripe SDK
+- AI Integrations: Google Gemini (REST), Longcat (OpenAI‑compatible)
+- Realtime: Server‑Sent Events (SSE) with in‑memory pub/sub
+- Auth: Bearer JWT (Authorization header); SSE token via query parameter
+- Build/Tooling: Node.js (frontend), Python virtualenv (backend)
 
-Public demo: https://finaura-demo.example.com
-
-Note: Replace this link with your actual deployment URL.
-
-## 3. Key Features
-
-- Smart Goal Planner
-  - Create target goals, project progress using monthly savings, visualize ahead/behind state
-  - Progress endpoint computes remaining months vs. ideal pace
-- Investment Simulator
-  - Run SIP simulations with adjustable parameters
-  - Align scenarios to Low/Medium/High risk profiles
-- Expense & Income Tracking
-  - CRUD operations for expenses and income categories
-  - Charts and insights for understanding cashflow
-- Profile & Security
-  - JWT auth, protected routes
-  - KYC details capture (PAN, DOB, address) and status toggling
-  - Bank linking UX (modal for connect/update/disconnect)
-- Polished UX
-  - Dark/Light theme powered by CSS variables
-  - Consistent components (card-base, input, btn, btn-secondary)
-  - Framer Motion animations and Recharts visualizations
-
-## 4. Why FinAura is Unique
-
-- End-to-end theme system: UI is built on CSS variables, so light/dark mode applies everywhere
-- Holistic finance flow: income/expenses, goals, investments, and KYC live together cohesively
-- Modular backend: FastAPI with clear controllers, models, and routes
-- MongoDB with async Motor: scalable and responsive data layer
-- Smooth UX details: loading skeletons, error boundaries, animated modals
-
-## 5. Architecture Overview
-
-Monorepo structure:
+## 3. Repository Structure
 
 ```
 FinAura/
-├─ frontend/   # React + Vite + Tailwind + Framer Motion + Recharts
-└─ backend/    # FastAPI + Motor (MongoDB) + JWT + Razorpay
+├─ frontend/                     # Vite + React app
+│  ├─ src/
+│  │  ├─ components/            # Assistant, Notifications, Forms, Charts, etc.
+│  │  ├─ context/               # Auth, Theme, Notifications
+│  │  ├─ pages/                 # Dashboard, Expenses, Income, Investments, Goal Planner, Chat
+│  │  ├─ utils/                 # Axios setup and helpers
+│  │  └─ styles.css             # Global styles
+│  ├─ index.html
+│  ├─ package.json
+│  └─ vite.config.js
+│
+├─ backend/                      # FastAPI app
+│  ├─ app/
+│  │  ├─ routes/                # API routes: auth, payments, ai, notifications, goals, etc.
+│  │  ├─ controllers/           # Business logic per resource
+│  │  ├─ models/                # Pydantic models
+│  │  ├─ utils/                 # dbConnect, jwt, notifier, realtime (SSE), ids, serialization, llm connector
+│  │  ├─ services/              # Agents/memory abstractions
+│  │  ├─ tests/                 # Sample tests
+│  │  ├─ main.py                # FastAPI app entry
+│  │  └─ requirements.txt
+│  ├─ README.md
+│  └─ .env.example
+│
+├─ README.md                     # Project overview
+└─ docs.md                       # Technical documentation (this file)
 ```
 
-### Frontend
-- React (Vite) with Tailwind
-- ThemeContext sets `html[data-theme]` to `dark|light` and `styles.css` provides variables
-- Axios instance with interceptor for JWT from localStorage
-- Pages: Home, Dashboard, Profile, Expenses, Income, Investments, Goal Planner, etc.
-- Components: Sidebar, Navbar (theme toggle), ErrorBoundary, GoalPlannerModal/Core, GoalProgressCard
+## 4. Core Features
 
-### Backend
-- FastAPI app with modular routers
-- Mongo via Motor, ObjectId-safe serialization
-- JWT auth and guarded routes
-- Models
-  - User (includes optional `kycStatus` and `kyc` details)
-  - Goal models and controller for CRUD + progress
-  - Expense/Income/Investment CRUD
-- Startup ensures indices (e.g., unique on users.email, goals.userId)
+- Auth & Profile: JWT auth, protected routes, profile update.
+- Expenses/Income/Investments: Full CRUD, filters/sort, edit modals, deletes.
+- Wallet & Payments:
+	- Stripe Checkout for wallet top‑ups; webhook/confirm credits wallet + notifies.
+	- Wallet‑paid expenses adjust wallet on create/update/delete.
+- Goals (Multiple): maintain many goals; one Active; progress uses Active.
+- Smart Suggestions: heuristics + optional AI summary; apply endpoints wired.
+- Notifications: CRUD + real‑time SSE; mark‑as‑read, clear‑all.
+- In‑app Assistant: Gemini/Longcat chat constrained to FinAura data.
 
-## 6. API Summary
+## 5. API Highlights
 
-Base URL (local): http://localhost:8000
+Base URL (default): `http://localhost:8000`
 
-- Auth
-  - POST `/api/auth/signup`
-  - POST `/api/auth/login`
-  - GET `/api/auth/profile`
-  - PUT `/api/auth/profile` (update name, riskProfile, bankLinked, kycStatus, kyc)
-  - POST `/api/auth/refresh`
-- Goals
-  - GET `/api/goals`
-  - POST `/api/goals`
-  - PUT `/api/goals/:id`
-  - DELETE `/api/goals/:id`
-  - GET `/api/goals/progress`
-- Expenses `/api/expenses` (CRUD)
-- Income `/api/income` (CRUD)
-- Investments `/api/investment` (CRUD)
-- Payments `/api/payment` (initiate/verify)
-- AI `/api/ai/...` (expense predictions, investment recommendations)
+- Auth: `/api/auth/signup`, `/login`, `/profile`, `/refresh`
+- Expenses: `/api/expenses` (GET/POST), `/api/expenses/{id}` (PUT/DELETE)
+- Income: `/api/income` (GET/POST), `/api/income/{id}` (PUT/DELETE)
+- Investment: `/api/investment` (GET/POST), `/api/investment/{id}` (PUT/DELETE)
+- Budgets: `/api/budget` (CRUD)
+- Notifications: `/api/notifications` (GET/POST/DELETE), `/api/notifications/{id}/read` (POST), `/api/notifications/sse?token=JWT`
+- Payments: `/api/payment/initiate` (POST), `/api/payment/webhook` (POST)
+- AI Chat: `/api/ai/chat?q=...&model=gemini|longcat` (GET)
+- AI Suggestions: `/api/ai/suggestions?model=&notify_user=` (GET)
+- AI Apply:
+	- `/api/ai/apply/monthly-savings-to-wallet` (POST)
+	- `/api/ai/apply/set-weekly-cap` (POST) — payload `{ category, weeklyLimit }`
+	- `/api/ai/apply/trim-categories` (POST)
+- Goals (Multiple):
+	- `/api/goals` (GET list, POST create)
+	- `/api/goals/active` (GET active)
+	- `/api/goals/{goal_id}/active` (POST set active)
+	- `/api/goals/{goal_id}` (PUT update, DELETE delete)
+	- `/api/goals/progress` (GET), `/api/goals/notify-progress` (POST)
 
-Note: Endpoint details may evolve; check backend source for the latest schemas.
+	## 6. Data Models (abridged)
 
-## 7. Local Development
+	- User (selected): `{ _id, email, passwordHash, walletBalance, netShadow?, riskProfile? }`
+	- Expense: `{ _id, userId, category, amount, date, note?, paymentMethod? }`
+	- Income: `{ _id, userId, source, amount, date }`
+	- Investment: `{ _id, userId, type, amount, roi, riskLevel?, date }`
+	- Notification: `{ _id, userId, type, title, text, read, ts }`
+	- Budget: `{ _id, userId, month:'YYYY-MM', category?, limit }`
+	- Goal: `{ _id, userId, name, targetAmount, targetDate:'YYYY-MM', active, createdAt }`
 
-### Backend
+	## 7. Local Development
 
-- Requirements: Python 3.10+
-- Create and activate a virtual environment
-- Install requirements and run FastAPI
+	Prereqs:
+	- Node.js 18+
+	- Python 3.10+
+	- MongoDB running locally (or a connection string)
 
-Windows PowerShell example:
+	Environment:
+	- Backend `.env` (copy from `backend/app/.env.example`):
+		- `MONGO_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
+	- Frontend `.env`:
+		- `VITE_API_BASE_URL=http://localhost:8000`
 
-```
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r backend/app/requirements.txt
-uvicorn backend/app/main:app --reload --port 8000
-```
+	Backend (Windows PowerShell):
+	```powershell
+	python -m venv .venv
+	.venv\Scripts\activate
+	pip install -r backend/app/requirements.txt
+	uvicorn backend/app/main:app --reload --port 8000
+	```
 
-Environment variables (backend):
-- `MONGO_URI` (e.g., `mongodb://localhost:27017/finaura`)
-- `JWT_ACCESS_SECRET`
-- `JWT_REFRESH_SECRET`
-- `RAZORPAY_KEY`, `RAZORPAY_SECRET` (if payments used)
+	Frontend (Windows PowerShell):
+	```powershell
+	cd frontend
+	npm install
+	npm run dev
+	```
 
-### Frontend
+	## 8. Deployment Notes
 
-- Requirements: Node.js 18+
-- Create `.env` in `frontend` with:
+	- Backend: containerize or deploy on a Python app host; ensure environment secrets are set; configure Stripe webhook endpoint.
+	- Frontend: static hosting for the Vite build output; configure `VITE_API_BASE_URL` to point to your backend.
+	- CORS: allow the frontend origin on the backend.
+	- SSE: ensure reverse proxy supports streaming responses.
 
-```
-VITE_API_BASE_URL=http://localhost:8000
-```
+	## 9. Security & Compliance
 
-- Install and run:
+	- JWT storage: client keeps access token; interceptor clears on 401 and redirects to login.
+	- SSE auth: pass JWT as query parameter; validate on server.
+	- Webhooks: verify Stripe signatures; never trust unauthenticated webhooks.
+	- PII: avoid logging sensitive data; redact tokens/keys.
+	- Rate limiting: consider reverse proxy or API gateway limits for public endpoints.
 
-```
-cd frontend
-npm install
-npm run dev
-```
+	## 10. Testing & QA
 
-App runs at http://localhost:5173
+	- Unit tests: `backend/app/tests/` (pytest). Add more for controllers and routes.
+	- Manual flows:
+		- Auth signup/login, profile update
+		- Expense/Income/Investment CRUD
+		- Wallet top‑up via Stripe (test mode) + webhook
+		- Wallet‑paid expenses create/update/delete adjustments
+		- Goals create/list/set active/update/delete; progress endpoint
+		- SSE notifications; mark‑as‑read/clear‑all
+		- Smart Suggestions + apply endpoints
 
-## 8. Deployment Overview
+	## 11. Known Limitations / Roadmap
 
-- Backend
-  - Containerize FastAPI (Uvicorn/Gunicorn) and configure env vars
-  - Managed MongoDB (Atlas) recommended
-  - Use HTTPS behind a reverse proxy (nginx) and rotate JWT secrets
-- Frontend
-  - Build with `npm run build` and deploy static assets (Netlify/Vercel/S3+CloudFront)
-  - Set `VITE_API_BASE_URL` to backend URL
+	- SSE fan‑out is in‑memory (single instance). For scale, replace with Redis pub/sub.
+	- Budgets enforcement is basic; extend to server‑side checks and proactive alerts when crossing limits.
+	- AI: Add cached embeddings or richer context windows for better personalization.
+	- Analytics: add cohort metrics and trends over time.
 
-## 9. Testing
+	## 12. Maintainers
 
-- Backend: `pytest` + `pytest-asyncio`
+	- Owner: @HarshTiwari1131
+	- Contributions: PRs welcome (lint, tests, docs with examples)
 
-```
-pip install pytest pytest-asyncio httpx
-pytest
-```
+	---
+	If you need a shorter one‑pager for submissions, use the root `README.md`. This `docs.md` is the canonical developer reference.
 
-- Frontend: add unit tests with Vitest/RTL (optional)
+	## 13. Assistant Scope & Knowledge (Updated)
 
-## 10. Roadmap
+	The in‑app assistant has been expanded to cover general, educational finance knowledge in addition to the user’s FinAura data.
 
-- Prefill KYC modal from saved profile
-- Persist bank details (bank name, masked account number, IFSC) with validation
-- Add more AI endpoints and insights on dashboard
-- Add automated frontend tests and e2e smoke tests
+	- Allowed topics: budgeting, goal planning, savings strategies, risk profiles, diversification, compounding, SIPs/rupee‑cost averaging, high‑level stocks/equity, mutual funds/ETFs, bonds/debt, and crypto risk framing.
+	- Guardrails: no recommendations of specific tickers/products; no external apps/software advice; respond with a clear constraints message when asked out‑of‑scope.
+	- Safety: include a brief disclaimer: “This is educational, not financial advice.”
 
-## 11. Contributors
+	Behavioral details:
+	- About FinAura / identity questions (or when a user says “more detail”): the assistant returns a compact overview of features and why FinAura is different, plus a link to the maintainer GitHub profile: https://github.com/Harshtiwari1131
+	- Context included in prompts: summary of income, expenses, net, wallet, invested, riskProfile, and the active goal if present.
 
-- Harsh Tiwari (@HarshTiwari1131)
-- Your Name Here (add yourself via PR)
+	Sample prompts users can try:
+	- “How much should I save monthly to hit my goal?”
+	- “What’s a simple diversified allocation for a moderate risk profile?”
+	- “Explain SIPs and why they help with market volatility.”
+	- “I overspent this month—what can I trim and how to set a weekly cap?”
+	- “What is the difference between equity mutual funds and bonds?”
 
-## 12. License
-
-For hackathon/demo purposes. Consider using MIT or Apache‑2.0 for wider adoption.
+	Assistant responses will combine user context (when available) with general finance knowledge and keep answers concise, practical, and educational.
